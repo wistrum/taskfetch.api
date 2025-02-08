@@ -1,16 +1,17 @@
 package com.wistrum.taskfetch.api.controller;
 
-import com.wistrum.taskfetch.api.exception.IllegalInputException;
 import com.wistrum.taskfetch.api.model.*;
 import com.wistrum.taskfetch.api.service.*;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,17 +36,17 @@ public class TaskController {
 			Task task = taskService.getTaskById(id);
 			return ResponseEntity.ok(task);
 		}
-		catch (IllegalInputException e) {
-			return ResponseEntity.badRequest().body("Error: " + e.getMessage());
-		}
 		catch (EntityNotFoundException e) {
 			return ResponseEntity.notFound().build();
 		}
 	}
 	@GetMapping("/status")
-	public ResponseEntity<?> getTasksByStatus(@Valid @RequestParam String status){
+	public ResponseEntity<?> getTasksByStatus(@Valid @RequestParam(required = false) String status){
+		if(status == null) {
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Validation Failed");
+		}
 		try {
-			TaskStatus getStatus = TaskStatus.valueOf(status);
+			TaskStatus getStatus = TaskStatus.valueOf(status.toUpperCase());
 			List<Task> tasks = taskService.getTasksByStatus(getStatus);
 			if(tasks.isEmpty()) {
 				return ResponseEntity.notFound().build();
@@ -53,7 +54,7 @@ public class TaskController {
 			return ResponseEntity.ok(tasks);
 		}
 		catch (IllegalArgumentException e) {
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid Status: " + status);
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid Status");
 		}
 	}
 	@PutMapping("/{id}")
@@ -65,31 +66,29 @@ public class TaskController {
 			}
 			return ResponseEntity.ok(updatedTask);
 		}
-		catch (IllegalInputException e){
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Validation Failed" + e.getMessage());
+		
+		catch (EntityNotFoundException e){
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put("error", "Not Found");
+			errorMap.put("message:", e.getMessage());
+			return ResponseEntity.status(HttpStatus.NOT_FOUND)
+					.contentType(MediaType.APPLICATION_JSON)
+					.body(errorMap);
 		}
 	}
 	@PostMapping
 	public ResponseEntity<?> saveTask(@Valid @RequestBody Task task) {
-		try{
-			Task newTask = taskService.saveTask(task);
-			return ResponseEntity.status(HttpStatus.CREATED).body(newTask);
-		}
-		catch (DataIntegrityViolationException e) {
-			return ResponseEntity.unprocessableEntity().build();
-		}
-		catch (IllegalInputException e) {
-			return ResponseEntity.badRequest().body("Error: " + e.getMessage());
-		}
+		Task newTask = taskService.saveTask(task);
+		return ResponseEntity.status(HttpStatus.CREATED)
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(newTask);
 	}
 	@DeleteMapping("/{id}")
 	public ResponseEntity<String> deleteTask(@PathVariable long id) {
-		try{
-			taskService.deleteTask(id);
-			return ResponseEntity.ok("Task Successfully Deleted");
+		if(!taskService.existsById(id)) {
+			throw new EntityNotFoundException("Task Not Found");
 		}
-		catch (IllegalInputException e) {
-			return ResponseEntity.badRequest().body(e.getMessage());
-		}
+		taskService.deleteTask(id);
+		return ResponseEntity.ok("Task Successfully Deleted");
 	}
 }

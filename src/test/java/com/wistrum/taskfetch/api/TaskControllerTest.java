@@ -41,6 +41,7 @@ public class TaskControllerTest {
     @BeforeEach
     void setUp() {
         validTask = new Task("Valid Task", "Valid Description", "PENDING");
+        validTask.setId(1L);
     }
 
     // Utility method to convert objects to JSON
@@ -77,6 +78,7 @@ public class TaskControllerTest {
         mockMvc.perform(get("/tasks/1"))
                .andExpect(status().isOk())
                .andExpect(jsonPath("$.title", is("Valid Task")))
+               .andExpect(jsonPath("$.description", is("Valid Description")))
                .andExpect(jsonPath("$.status", is("PENDING")));
     }
 
@@ -106,7 +108,7 @@ public class TaskControllerTest {
         mockMvc.perform(get("/tasks/status")
                .param("status", "INVALID_STATUS"))
                .andExpect(status().isBadRequest())
-               .andExpect(content().string("Invalid Status: INVALID_STATUS"));
+               .andExpect(content().string(containsString("Invalid Status")));
     }
 
     @Test
@@ -116,6 +118,13 @@ public class TaskControllerTest {
         mockMvc.perform(get("/tasks/status")
                .param("status", "PROCESSING"))
                .andExpect(status().isNotFound());
+    }
+    
+    @Test
+    void getTasksByStatus_NullStatus_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/tasks/status"))
+               .andExpect(status().isBadRequest())
+               .andExpect(content().string(containsString("Validation Failed")));
     }
 
     // ------------------------------ PUT /tasks/{id} ------------------------------
@@ -144,9 +153,9 @@ public class TaskControllerTest {
         
         mockMvc.perform(put("/tasks/1")
                .contentType(MediaType.APPLICATION_JSON)
-               .content(asJsonString(invalidTask)))
+               .content(invalidTask))
                .andExpect(status().isBadRequest())
-               .andExpect(jsonPath("$").value(containsString("Validation Failed")));
+               .andExpect(jsonPath("$.error").value(containsString("Validation Failed")));
     }
 
     @Test
@@ -163,14 +172,21 @@ public class TaskControllerTest {
     // ------------------------------ POST /tasks ------------------------------
     @Test
     void createTask_ValidData_ReturnsCreated() throws Exception {
-        Mockito.when(taskService.saveTask(validTask)).thenReturn(validTask);
+        // Create a new task that will be returned by the service
+        Task savedTask = new Task("Valid Task", "Valid Description", "PENDING");
+        savedTask.setId(1L); // Simulate database save by setting an ID
+
+        // When saveTask is called with any Task object, return our savedTask
+        Mockito.when(taskService.saveTask(Mockito.any(Task.class))).thenReturn(savedTask);
 
         mockMvc.perform(post("/tasks")
                .contentType(MediaType.APPLICATION_JSON)
                .content(asJsonString(validTask)))
                .andExpect(status().isCreated())
+               .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                .andExpect(jsonPath("$.description", is("Valid Description")))
-               .andExpect(jsonPath("$.title", is("Valid Task")));
+               .andExpect(jsonPath("$.title", is("Valid Task")))
+               .andExpect(jsonPath("$.status", is("PENDING")));
     }
 
     @Test
@@ -181,12 +197,13 @@ public class TaskControllerTest {
                .contentType(MediaType.APPLICATION_JSON)
                .content(asJsonString(invalidTask)))
                .andExpect(status().isBadRequest())
-               .andExpect(jsonPath("$").value(containsString("Validation Failed")));
+               .andExpect(jsonPath("$.error").value(containsString("Validation Failed")));
     }
 
     // ------------------------------ DELETE /tasks/{id} ------------------------------
     @Test
     void deleteTask_ValidId_ReturnsSuccess() throws Exception {
+    	Mockito.when(taskService.existsById(1L)).thenReturn(true);
         Mockito.doNothing().when(taskService).deleteTask(1L);
 
         mockMvc.perform(delete("/tasks/1"))
@@ -197,8 +214,10 @@ public class TaskControllerTest {
     @Test
     void deleteTask_NonExistentId_ReturnsNotFound() throws Exception {
         Mockito.doThrow(new EntityNotFoundException("Task not found.")).when(taskService).deleteTask(999L);
+        Mockito.when(taskService.existsById(999L)).thenReturn(false);
 
         mockMvc.perform(delete("/tasks/999"))
-               .andExpect(status().isNotFound());
+               .andExpect(status().isNotFound())
+               .andExpect(content().string(containsString("Task Not Found")));
     }
 }

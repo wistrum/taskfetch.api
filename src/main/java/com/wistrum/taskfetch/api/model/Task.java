@@ -9,13 +9,11 @@ public class Task {
 	@Id @GeneratedValue(strategy = GenerationType.AUTO)
 	private long id;
 	
-	@NotNull
-	@NotEmpty
+	@NotBlank
 	@Size(min = 1, message = "Title is required.")
 	private String title;
 	
-	@NotNull
-	@NotEmpty
+	@NotBlank
 	@Size(min = 1, message = "Description is required.")
 	private String description;
 	
@@ -24,9 +22,14 @@ public class Task {
 	private TaskStatus status;
 	
 	public Task(String title, String description, String status) {
+		try {
+			this.status = TaskStatus.valueOf(status.toUpperCase());
+		}
+		catch(IllegalArgumentException e){
+			throw new IllegalArgumentException("Invalid Status:" + status);
+		}
 		this.title = title;
 		this.description = description;
-		this.status = TaskStatus.valueOf(status.toUpperCase());
 	}
 	public Task() {};
 	
