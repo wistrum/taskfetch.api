@@ -3,6 +3,7 @@ package com.wistrum.taskfetch.api;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.hamcrest.Matchers.*;
+import static org.mockito.ArgumentMatchers.eq;
 
 import java.util.Collections;
 import java.util.List;
@@ -130,8 +131,11 @@ public class TaskControllerTest {
     // ------------------------------ PUT /tasks/{id} ------------------------------
     @Test
     void updateTask_ValidData_ReturnsUpdatedTask() throws Exception {
-        Task updatedTask = new Task("Updated Task", "Updated Description", "COMPLETED");
-        Mockito.when(taskService.updateTask(1L, updatedTask)).thenReturn(updatedTask);
+        Task updatedTask = validTask;
+        updatedTask.setTitle("Updated Task");
+        updatedTask.setDescription("Updated Description");
+        updatedTask.setStatus(TaskStatus.valueOf("COMPLETED"));
+        Mockito.when(taskService.updateTask(eq(1L), Mockito.any(Task.class))).thenReturn(updatedTask);
 
         mockMvc.perform(put("/tasks/1")
                .contentType(MediaType.APPLICATION_JSON)
@@ -147,7 +151,7 @@ public class TaskControllerTest {
         		{
         		"title": "",
         		"description": "",
-        		"status": "INVALID_STATUS"
+        		"status": "NOTCOMPLETED"
         		}
         		""";
         

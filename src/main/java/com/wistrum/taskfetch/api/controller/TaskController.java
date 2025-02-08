@@ -13,6 +13,7 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -59,22 +60,11 @@ public class TaskController {
 	}
 	@PutMapping("/{id}")
 	public ResponseEntity<?> updateTask(@PathVariable long id, @Valid @RequestBody Task task) {
-		try{
 			Task updatedTask = taskService.updateTask(id,  task);
 			if(updatedTask == null) {
 				return ResponseEntity.notFound().build();
 			}
 			return ResponseEntity.ok(updatedTask);
-		}
-		
-		catch (EntityNotFoundException e){
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put("error", "Not Found");
-			errorMap.put("message:", e.getMessage());
-			return ResponseEntity.status(HttpStatus.NOT_FOUND)
-					.contentType(MediaType.APPLICATION_JSON)
-					.body(errorMap);
-		}
 	}
 	@PostMapping
 	public ResponseEntity<?> saveTask(@Valid @RequestBody Task task) {

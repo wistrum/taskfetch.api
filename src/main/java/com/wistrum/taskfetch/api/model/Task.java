@@ -6,7 +6,7 @@ import jakarta.validation.constraints.*;
 
 @Entity
 public class Task {
-	@Id @GeneratedValue(strategy = GenerationType.AUTO)
+	@Id @GeneratedValue(strategy = GenerationType.IDENTITY)
 	private long id;
 	
 	@NotBlank
